@@ -1,0 +1,46 @@
+[MASTER]
+# Add any Python module names here to blacklist them for the --ignore option and
+# to ignore them in the --ignore-patterns option. The directory containing the
+# module is not in sys.path, use PYTHONPATH to get it loaded.
+ignore=CVS
+
+# Add any Python module names here to blacklist them when they are imported
+# under a different name. The directory containing the module is not in
+# sys.path, use PYTHONPATH to get it loaded.
+ignore-imports=
+
+# Python code to execute, usually for sys.path manipulation such as
+# pygtk.require().
+#init-hook=
+
+# Use multiple processes to speed up Pylint.
+jobs=0
+
+# List of plugins (as comma separated values of python modules names) to load,
+# usually to register additional checkers.
+load-plugins=
+
+# Use multiple processes to speed up Pylint.
+#jobs=0
+
+# List of plugins (as comma separated values of python modules names) to load,
+# usually to register additional checkers.
+#load-plugins=
+
+# Pickle collected data for later comparisons.
+persistent=yes
+
+# Specify a configuration file.
+#rcfile=
+
+# Allow loading C extensions for speedup.
+unsafe-load-any-extension=no
+
+[MESSAGES CONTROL]
+# Disable specific warnings
+disable=C0114,  # missing-module-docstring
+        C0301,  # line too long
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=88

@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Live WebRTC Client - Fixed Audio Playback</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .debug-section {
+            background: #fff4e5;
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .debug-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .stat-label {
+            font-weight: bold;
+            color: #666;
+        }
+
+        .stat-value {
+            color: #333;
+        }
+
+        .session-info {
+            background: #e8f4f8;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .session-info strong {
+            color: #667eea;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        .btn-test {
+            background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connecting {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+
+        .status-indicator.error {
+            background: #f44336;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+
+        .media-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .media-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .media-section h3 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            margin-top: 10px;
+            display: block;
+        }
+
+        #localVideo.active {
+            border: 3px solid #4caf50;
+        }
+
+        .audio-visualizer {
+            height: 60px;
+            background: #333;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 10px;
+        }
+
+        .audio-bar {
+            width: 4px;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: height 0.1s;
+        }
+
+        .log-section {
+            background: #2d2d2d;
+            color: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #444;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.success {
+            color: #51cf66;
+        }
+
+        .log-entry.info {
+            color: #74c0fc;
+        }
+
+        .log-entry.warning {
+            color: #ffed4e;
+        }
+
+        .log-entry.debug {
+            color: #b197fc;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Gemini Live WebRTC Client - Fixed Audio</h1>
+
+        <div class="status-bar">
+            <div id="statusIndicator" class="status-indicator"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+
+        <div class="debug-section">
+            <h3>Debug Statistics</h3>
+            <div class="debug-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Video Channel:</span>
+                    <span class="stat-value" id="videoChannelState">Not Created</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Audio Channel:</span>
+                    <span class="stat-value" id="audioChannelState">Not Created</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Video Frames Sent:</span>
+                    <span class="stat-value" id="videoFramesSent">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Audio Chunks Sent:</span>
+                    <span class="stat-value" id="audioChunksSent">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Bytes Sent:</span>
+                    <span class="stat-value" id="totalBytesSent">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Video Capture Status:</span>
+                    <span class="stat-value" id="videoCaptureStatus">Not Started</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Video FPS:</span>
+                    <span class="stat-value" id="videoFpsDisplay">1</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Connection State:</span>
+                    <span class="stat-value" id="connectionState">new</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="session-info" id="sessionInfo" style="display: none;">
+            <strong>Current Session ID:</strong> <span id="currentSessionId">None</span><br>
+            <button onclick="copySessionId()" style="margin-top: 5px; padding: 5px 10px;">Copy ID</button>
+        </div>
+
+        <div class="config-section">
+            <div class="config-group">
+                <label for="apiUrl">API URL:</label>
+                <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+            </div>
+            <div class="config-group">
+                <label for="systemInstruction">System Instruction:</label>
+                <textarea id="systemInstruction"
+                    placeholder="You are a helpful AI assistant...">You are a helpful AI assistant with real-time audio and video capabilities.</textarea>
+            </div>
+            <div class="config-group">
+                <label for="speakerName">Speaker Voice:</label>
+                <select id="speakerName">
+                    <option value="Zephyr">Zephyr</option>
+                    <option value="Asteria">Asteria</option>
+                    <option value="Luna">Luna</option>
+                    <option value="Orion">Orion</option>
+                </select>
+            </div>
+            <div class="config-group">
+                <label for="videoFps">Video FPS:</label>
+                <select id="videoFps">
+                    <option value="1" selected>1 FPS</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="connectBtn" class="btn-primary" onclick="createSession()">Connect</button>
+            <button id="disconnectBtn" class="btn-danger" onclick="disconnect()" disabled>Disconnect</button>
+            <button id="shareScreenBtn" class="btn-success" onclick="startScreenShare()" disabled>Share Screen</button>
+            <button id="shareMicBtn" class="btn-warning" onclick="startMicShare()" disabled>Share Mic</button>
+        </div>
+
+        <div class="controls" style="margin-top: 10px;">
+            <button id="stopScreenBtn" class="btn-danger" onclick="stopScreenShare()" disabled>Stop Screen</button>
+            <button id="stopMicBtn" class="btn-danger" onclick="stopMicShare()" disabled>Stop Mic</button>
+            <button class="btn-test" onclick="sendTestMessages()" id="testBtn" disabled>Send Test Data</button>
+            <button class="btn-primary" onclick="clearAll()">Clear All</button>
+        </div>
+
+        <div class="media-controls">
+            <div class="media-section">
+                <h3>Screen Share / Microphone</h3>
+                <video id="localVideo" autoplay muted playsinline></video>
+                <div id="micStatus" style="margin-top: 10px; display: none;">
+                    Microphone is active
+                </div>
+            </div>
+            <div class="media-section">
+                <h3>Audio Output from Gemini</h3>
+                <div class="audio-visualizer" id="audioVisualizer">
+                    <div class="audio-bar" style="height: 20px;"></div>
+                    <div class="audio-bar" style="height: 35px;"></div>
+                    <div class="audio-bar" style="height: 25px;"></div>
+                    <div class="audio-bar" style="height: 40px;"></div>
+                    <div class="audio-bar" style="height: 30px;"></div>
+                    <div class="audio-bar" style="height: 45px;"></div>
+                    <div class="audio-bar" style="height: 35px;"></div>
+                    <div class="audio-bar" style="height: 25px;"></div>
+                    <div class="audio-bar" style="height: 40px;"></div>
+                    <div class="audio-bar" style="height: 20px;"></div>
+                </div>
+                <audio id="audioOutput" autoplay></audio>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <div id="logContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Fixed audio player optimized for Gemini Live real-time playback
+        class OptimizedAudioPlayer {
+            constructor() {
+                this.audioContext = null;
+                this.gain = null;
+                this.chunksPlayed = 0;
+                this.isReady = false;
+                this.nextStartTime = 0;
+                this.init();
+            }
+
+            async init() {
+                try {
+                    // Use optimal settings for real-time audio
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        latencyHint: 'interactive',
+                        sampleRate: 24000 // Gemini Live uses 24kHz
+                    });
+
+                    this.gain = this.audioContext.createGain();
+                    this.gain.gain.value = 0.8; // Prevent distortion
+                    this.gain.connect(this.audioContext.destination);
+
+                    console.log('Audio player initialized:', this.audioContext.sampleRate + 'Hz');
+                    this.setupResume();
+                    this.isReady = true;
+
+                } catch (error) {
+                    console.error('Audio init failed:', error);
+                }
+            }
+
+            setupResume() {
+                const resume = async () => {
+                    if (this.audioContext && this.audioContext.state === 'suspended') {
+                        try {
+                            await this.audioContext.resume();
+                            console.log('Audio context resumed');
+                        } catch (error) {
+                            console.error('Resume failed:', error);
+                        }
+                    }
+                };
+
+                ['click', 'touchstart', 'keydown', 'mousedown'].forEach(event => {
+                    document.addEventListener(event, resume, { once: true });
+                });
+
+                resume();
+            }
+
+            async enqueueAudio(audioDataUint8) {
+                if (!this.audioContext || !this.isReady) {
+                    console.warn('Audio not ready');
+                    return;
+                }
+
+                if (this.audioContext.state === 'suspended') {
+                    try {
+                        await this.audioContext.resume();
+                    } catch (e) {
+                        console.error('Failed to resume audio context:', e);
+                        return;
+                    }
+                }
+
+                try {
+                    // Convert Uint8Array to Int16Array (PCM 16-bit)
+                    const pcm16 = new Int16Array(audioDataUint8.buffer, audioDataUint8.byteOffset, audioDataUint8.byteLength / 2);
+
+                    // Convert to Float32Array for Web Audio API
+                    const samples = new Float32Array(pcm16.length);
+                    for (let i = 0; i < pcm16.length; i++) {
+                        samples[i] = Math.max(-1, Math.min(1, pcm16[i] / 32768.0));
+                    }
+
+                    // Create audio buffer with context's sample rate
+                    const buffer = this.audioContext.createBuffer(1, samples.length, this.audioContext.sampleRate);
+                    buffer.getChannelData(0).set(samples);
+
+                    // Create and configure source
+                    const source = this.audioContext.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(this.gain);
+
+                    // Schedule playback with minimal latency
+                    const when = Math.max(this.audioContext.currentTime, this.nextStartTime);
+                    source.start(when);
+
+                    // Update next start time without overlap to prevent speed issues
+                    this.nextStartTime = when + buffer.duration;
+
+                    this.chunksPlayed++;
+                    if (this.chunksPlayed % 10 === 0) {
+                        console.log(`Playing chunk ${this.chunksPlayed} (${samples.length} samples, ${buffer.duration.toFixed(3)}s)`);
+                    }
+
+                } catch (error) {
+                    console.error('Playback error:', error);
+                }
+            }
+
+            getStatus() {
+                return {
+                    chunksPlayed: this.chunksPlayed,
+                    contextState: this.audioContext?.state,
+                    currentTime: this.audioContext?.currentTime?.toFixed(3),
+                    nextStartTime: this.nextStartTime?.toFixed(3),
+                    isReady: this.isReady,
+                    sampleRate: this.audioContext?.sampleRate
+                };
+            }
+
+            destroy() {
+                if (this.audioContext) {
+                    this.audioContext.close();
+                    console.log('Audio destroyed');
+                }
+            }
+        }
+
+        // Global variables
+        let pc = null;
+        let ws = null;
+        let sessionId = null;
+        let sessionOffer = null;
+        let videoDataChannel = null;
+        let audioDataChannel = null;
+        let screenStream = null;
+        let micStream = null;
+        let audioPlayer = null;
+        let audioProcessor = null;
+        let micProcessor = null;
+
+        let videoFramesSent = 0;
+        let audioChunksSent = 0;
+        let totalBytesSent = 0;
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.insertBefore(entry, logContainer.firstChild);
+
+            console.log(`[${type.toUpperCase()}] ${message}`);
+
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        function updateStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            indicator.className = `status-indicator ${status}`;
+            statusText.textContent = text;
+        }
+
+        function updateDebugStats() {
+            document.getElementById('videoFramesSent').textContent = videoFramesSent;
+            document.getElementById('audioChunksSent').textContent = audioChunksSent;
+            document.getElementById('totalBytesSent').textContent = formatBytes(totalBytesSent);
+
+            if (videoDataChannel) {
+                document.getElementById('videoChannelState').textContent = videoDataChannel.readyState;
+            }
+            if (audioDataChannel) {
+                document.getElementById('audioChannelState').textContent = audioDataChannel.readyState;
+            }
+            if (pc) {
+                document.getElementById('connectionState').textContent = pc.connectionState;
+            }
+
+            // Update video FPS display
+            const fpsDisplay = document.getElementById('videoFpsDisplay');
+            if (fpsDisplay) {
+                const currentFps = document.getElementById('videoFps').value;
+                fpsDisplay.textContent = currentFps + ' FPS';
+            }
+
+            // Update video capture status
+            const videoCaptureEl = document.getElementById('videoCaptureStatus');
+            if (videoCaptureEl) {
+                if (!screenStream) {
+                    videoCaptureEl.textContent = 'Not Started';
+                    videoCaptureEl.style.color = '#666';
+                } else if (videoFramesSent > 0) {
+                    videoCaptureEl.textContent = 'Capturing';
+                    videoCaptureEl.style.color = 'green';
+                } else {
+                    videoCaptureEl.textContent = 'Waiting for Video';
+                    videoCaptureEl.style.color = 'orange';
+                }
+            }
+
+            if (audioPlayer) {
+                const status = audioPlayer.getStatus();
+                let audioStatusElement = document.getElementById('audioStatus');
+                if (!audioStatusElement) {
+                    const debugContainer = document.querySelector('.debug-stats');
+                    if (debugContainer) {
+                        const audioDiv = document.createElement('div');
+                        audioDiv.className = 'stat-item';
+                        audioDiv.innerHTML = '<span class="stat-label">Audio Status:</span><span class="stat-value" id="audioStatus">-</span>';
+                        debugContainer.appendChild(audioDiv);
+                        audioStatusElement = document.getElementById('audioStatus');
+                    }
+                }
+                if (audioStatusElement) {
+                    audioStatusElement.textContent = `${status.chunksPlayed} chunks | ${status.contextState} | ${status.sampleRate}Hz`;
+                    audioStatusElement.style.color = status.contextState === 'running' ? 'green' : 'red';
+                }
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function copySessionId() {
+            navigator.clipboard.writeText(sessionId);
+            log('Session ID copied to clipboard', 'success');
+        }
+
+        async function sendTestMessages() {
+            log('Starting test sequence...', 'warning');
+
+            if (videoDataChannel && videoDataChannel.readyState === 'open') {
+                try {
+                    const testText = 'TEST_VIDEO_CHANNEL_' + Date.now();
+                    videoDataChannel.send(testText);
+                    log(`Test 1: Sent text through video channel: ${testText}`, 'debug');
+                } catch (e) {
+                    log(`Test 1 failed: ${e.message}`, 'error');
+                }
+            }
+
+            if (audioDataChannel && audioDataChannel.readyState === 'open') {
+                try {
+                    const testText = 'TEST_AUDIO_CHANNEL_' + Date.now();
+                    audioDataChannel.send(testText);
+                    log(`Test 3: Sent text through audio channel: ${testText}`, 'debug');
+                } catch (e) {
+                    log(`Test 3 failed: ${e.message}`, 'error');
+                }
+            }
+
+            log('Test sequence completed', 'success');
+        }
+
+        async function createSession() {
+            audioPlayer = new OptimizedAudioPlayer();
+            log('Audio player initialized', 'success');
+
+            try {
+                updateStatus('connecting', 'Connecting...');
+                const apiUrl = document.getElementById('apiUrl').value;
+                const systemInstruction = document.getElementById('systemInstruction').value;
+                const speakerName = document.getElementById('speakerName').value;
+
+                log('Creating new session...', 'info');
+
+                const response = await fetch(`${apiUrl}/api/v1/session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        system_instruction: systemInstruction,
+                        audio_speaker_name: speakerName
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to create session: ${errorText}`);
+                }
+
+                const data = await response.json();
+                sessionId = data.session_id;
+
+                if (data.offer && data.offer.sdp) {
+                    sessionOffer = data.offer.sdp;
+                } else if (typeof data.offer === 'string') {
+                    sessionOffer = data.offer;
+                } else {
+                    throw new Error('Invalid offer format');
+                }
+
+                log(`New session created: ${sessionId}`, 'success');
+
+                document.getElementById('currentSessionId').textContent = sessionId;
+                document.getElementById('sessionInfo').style.display = 'block';
+
+                await setupWebRTC(sessionOffer, apiUrl);
+                setupWebSocket(apiUrl);
+
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('shareScreenBtn').disabled = false;
+                document.getElementById('shareMicBtn').disabled = false;
+                document.getElementById('testBtn').disabled = false;
+
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                updateStatus('error', 'Connection failed');
+                console.error('Full error:', error);
+            }
+        }
+
+        async function setupWebRTC(offer, apiUrl) {
+            try {
+                pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                pc.onconnectionstatechange = () => {
+                    log(`Connection state: ${pc.connectionState}`, 'info');
+                    updateDebugStats();
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    log(`ICE connection state: ${pc.iceConnectionState}`, 'info');
+                };
+
+                pc.ondatachannel = (event) => {
+                    const channel = event.channel;
+                    log(`Data channel: ${channel.label} (${channel.readyState})`, 'info');
+
+                    if (channel.label === 'video') {
+                        videoDataChannel = channel;
+                        videoDataChannel.onopen = () => {
+                            log('Video channel opened', 'success');
+                            updateDebugStats();
+                        };
+                        videoDataChannel.onclose = () => {
+                            log('Video channel closed unexpectedly', 'error');
+                            updateDebugStats();
+                        };
+                        videoDataChannel.onerror = (error) => {
+                            log(`Video channel error: ${error}`, 'error');
+                        };
+                        videoDataChannel.onmessage = (e) => {
+                            log(`Video channel received message: ${e.data}`, 'debug');
+                        };
+                    } else if (channel.label === 'audio') {
+                        audioDataChannel = channel;
+                        audioDataChannel.onopen = () => {
+                            log('Audio channel opened', 'success');
+                            updateDebugStats();
+                        };
+                        audioDataChannel.onclose = () => {
+                            log('Audio channel closed unexpectedly', 'error');
+                        };
+                        audioDataChannel.onerror = (error) => {
+                            log(`Audio channel error: ${error}`, 'error');
+                        };
+                    }
+                };
+
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: offer
+                }));
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                const answerResponse = await fetch(`${apiUrl}/api/v1/session/${sessionId}/answer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        answer: {
+                            type: answer.type,
+                            sdp: answer.sdp
+                        }
+                    })
+                });
+
+                if (!answerResponse.ok) {
+                    throw new Error('Failed to send answer');
+                }
+
+                log('WebRTC connected', 'success');
+                updateStatus('connected', 'Connected');
+
+                setInterval(updateDebugStats, 1000);
+
+            } catch (error) {
+                log(`WebRTC error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        function setupWebSocket(apiUrl) {
+            const wsUrl = apiUrl.replace('http', 'ws');
+            ws = new WebSocket(`${wsUrl}/api/v1/ws/${sessionId}`);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = () => {
+                log('WebSocket connected', 'success');
+            };
+
+            ws.onmessage = async (event) => {
+                if (event.data instanceof ArrayBuffer && audioPlayer) {
+                    const audioData = new Uint8Array(event.data);
+                    log(`Got ${audioData.byteLength} bytes from Gemini`, 'debug');
+
+                    audioPlayer.enqueueAudio(audioData);
+                    animateVisualizer();
+                }
+            };
+
+            ws.onerror = (error) => {
+                log(`WebSocket error: ${error}`, 'error');
+            };
+
+            ws.onclose = () => {
+                log('WebSocket disconnected', 'info');
+            };
+        }
+
+        function animateVisualizer() {
+            const bars = document.querySelectorAll('.audio-bar');
+            bars.forEach(bar => {
+                const height = Math.random() * 40 + 10;
+                bar.style.height = `${height}px`;
+            });
+
+            setTimeout(() => {
+                bars.forEach(bar => {
+                    const currentHeight = parseInt(bar.style.height) || 20;
+                    const newHeight = Math.max(5, currentHeight * 0.7);
+                    bar.style.height = `${newHeight}px`;
+                });
+            }, 150);
+        }
+
+        async function startScreenShare() {
+            try {
+                log('Requesting screen share...', 'info');
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        frameRate: 10,
+                        width: { max: 1920 },
+                        height: { max: 1080 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    }
+                });
+
+                log(`Screen stream obtained with ${screenStream.getTracks().length} tracks`, 'success');
+
+                const video = document.getElementById('localVideo');
+                video.srcObject = screenStream;
+                video.classList.add('active');
+
+                const videoTrack = screenStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    log(`Video track found: ${videoTrack.label}, state: ${videoTrack.readyState}`, 'info');
+                    processVideoFrames(videoTrack);
+                } else {
+                    log('No video track found in screen stream', 'warning');
+                }
+
+                const audioTrack = screenStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    log('Audio track found, processing screen audio', 'info');
+                    processScreenAudio(audioTrack);
+                }
+
+                log('Screen sharing started successfully', 'success');
+                document.getElementById('shareScreenBtn').disabled = true;
+                document.getElementById('stopScreenBtn').disabled = false;
+
+                screenStream.getVideoTracks()[0].onended = stopScreenShare;
+
+            } catch (error) {
+                log(`Screen share error: ${error.message}`, 'error');
+            }
+        }
+
+        async function startMicShare() {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
+                });
+
+                document.getElementById('micStatus').style.display = 'block';
+
+                const audioTrack = micStream.getAudioTracks()[0];
+                if (audioTrack) processMicAudio(audioTrack);
+
+                log('Microphone sharing started', 'success');
+                document.getElementById('shareMicBtn').disabled = true;
+                document.getElementById('stopMicBtn').disabled = false;
+
+            } catch (error) {
+                log(`Microphone error: ${error.message}`, 'error');
+            }
+        }
+
+        async function processVideoFrames(videoTrack) {
+            const video = document.createElement('video');
+            video.srcObject = new MediaStream([videoTrack]);
+            video.muted = true; // Prevent audio feedback
+            video.autoplay = true;
+            video.playsInline = true;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let isCapturing = false;
+            let lastFrameTime = 0;
+
+            const captureFrame = async (currentTime = performance.now()) => {
+                if (!screenStream || !videoDataChannel || videoDataChannel.readyState !== 'open') {
+                    setTimeout(() => captureFrame(), 100);
+                    return;
+                }
+
+                // Get FPS setting from UI
+                const fps = parseInt(document.getElementById('videoFps').value) || 10;
+                const frameInterval = 1000 / fps; // Convert FPS to milliseconds between frames
+
+                // Check if enough time has passed since last frame
+                if (currentTime - lastFrameTime < frameInterval) {
+                    // Schedule next check
+                    setTimeout(() => captureFrame(), Math.max(1, frameInterval - (currentTime - lastFrameTime)));
+                    return;
+                }
+
+                if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+                    // Set fixed size to 768x768
+                    const targetWidth = 768;
+                    const targetHeight = 768;
+
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
+
+                    try {
+                        // Draw the scaled video frame
+                        ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+
+                        canvas.toBlob((blob) => {
+                            if (blob && videoDataChannel && videoDataChannel.readyState === 'open') {
+                                blob.arrayBuffer().then(buffer => {
+                                    const byteArray = new Uint8Array(buffer);
+
+                                    // Check if the data is still too large
+                                    if (byteArray.byteLength > 32768) { // Reduced to 32KB limit
+                                        log(`Video frame still too large: ${byteArray.byteLength} bytes at ${targetWidth}x${targetHeight}, skipping`, 'warning');
+                                        return;
+                                    }
+
+                                    try {
+                                        videoDataChannel.send(byteArray);
+                                        videoFramesSent++;
+                                        totalBytesSent += byteArray.byteLength;
+                                        lastFrameTime = performance.now(); // Update frame time after successful send
+
+                                        if (videoFramesSent % 10 === 1) {
+                                            log(`Sent video frame ${videoFramesSent}: ${byteArray.byteLength} bytes (${targetWidth}x${targetHeight}) at ${fps}fps`, 'debug');
+                                        }
+                                    } catch (error) {
+                                        log(`Error sending video frame: ${error.message}`, 'error');
+                                    }
+                                }).catch(err => {
+                                    console.error('Error converting blob to buffer:', err);
+                                });
+                            } else if (!videoDataChannel) {
+                                log('Video channel is null, stopping capture', 'error');
+                                return;
+                            } else if (videoDataChannel.readyState !== 'open') {
+                                log(`Video channel state: ${videoDataChannel.readyState}`, 'warning');
+                            }
+                        }, 'image/jpeg', 0.2); // Even lower quality
+                    } catch (error) {
+                        console.error('Error drawing video frame:', error);
+                    }
+                }
+
+                // Schedule next frame
+                setTimeout(() => captureFrame(), frameInterval);
+            };
+
+            // Wait for video to be ready before starting capture
+            const startCapture = () => {
+                if (isCapturing) return;
+                isCapturing = true;
+                const fps = parseInt(document.getElementById('videoFps').value) || 10;
+                log(`Video capture started: ${video.videoWidth}x${video.videoHeight} at ${fps}fps`, 'success');
+                captureFrame();
+            };
+
+            video.onloadedmetadata = startCapture;
+            video.oncanplay = startCapture;
+            video.onplaying = startCapture;
+
+            // Force play after a short delay
+            setTimeout(async () => {
+                try {
+                    await video.play();
+                    log('Video element started playing', 'info');
+                } catch (error) {
+                    console.error('Error starting video:', error);
+                }
+            }, 100);
+        }
+
+        async function processScreenAudio(audioTrack) {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
+            audioProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            audioProcessor.onaudioprocess = (e) => {
+                if (!audioDataChannel || audioDataChannel.readyState !== 'open') return;
+
+                const inputData = e.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(inputData.length);
+
+                for (let i = 0; i < inputData.length; i++) {
+                    pcm16[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                }
+
+                const byteArray = new Uint8Array(pcm16.buffer);
+                audioDataChannel.send(byteArray);
+                audioChunksSent++;
+                totalBytesSent += byteArray.byteLength;
+            };
+
+            source.connect(audioProcessor);
+            audioProcessor.connect(audioCtx.destination);
+            log('Screen audio processing started', 'success');
+        }
+
+        async function processMicAudio(audioTrack) {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            const source = audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
+            micProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            micProcessor.onaudioprocess = (e) => {
+                if (!audioDataChannel || audioDataChannel.readyState !== 'open') return;
+
+                const inputData = e.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(inputData.length);
+
+                for (let i = 0; i < inputData.length; i++) {
+                    pcm16[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                }
+
+                const byteArray = new Uint8Array(pcm16.buffer);
+                audioDataChannel.send(byteArray);
+                audioChunksSent++;
+                totalBytesSent += byteArray.byteLength;
+            };
+
+            source.connect(micProcessor);
+            micProcessor.connect(audioCtx.destination);
+            log('Microphone audio processing started', 'success');
+        }
+
+        function stopScreenShare() {
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+                document.getElementById('localVideo').srcObject = null;
+                document.getElementById('localVideo').classList.remove('active');
+            }
+
+            if (audioProcessor) {
+                audioProcessor.disconnect();
+                audioProcessor = null;
+            }
+
+            log('Screen sharing stopped', 'info');
+            document.getElementById('shareScreenBtn').disabled = false;
+            document.getElementById('stopScreenBtn').disabled = true;
+        }
+
+        function stopMicShare() {
+            if (micStream) {
+                micStream.getTracks().forEach(track => track.stop());
+                micStream = null;
+                document.getElementById('micStatus').style.display = 'none';
+            }
+
+            if (micProcessor) {
+                micProcessor.disconnect();
+                micProcessor = null;
+            }
+
+            log('Microphone sharing stopped', 'info');
+            document.getElementById('shareMicBtn').disabled = false;
+            document.getElementById('stopMicBtn').disabled = true;
+        }
+
+        async function disconnect() {
+            try {
+                stopScreenShare();
+                stopMicShare();
+
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+
+                if (audioPlayer) {
+                    audioPlayer.destroy();
+                    audioPlayer = null;
+                }
+
+                videoFramesSent = 0;
+                audioChunksSent = 0;
+                totalBytesSent = 0;
+                updateDebugStats();
+
+                updateStatus('', 'Disconnected');
+                log('Disconnected', 'info');
+
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('shareScreenBtn').disabled = true;
+                document.getElementById('shareMicBtn').disabled = true;
+                document.getElementById('stopScreenBtn').disabled = true;
+                document.getElementById('stopMicBtn').disabled = true;
+                document.getElementById('testBtn').disabled = true;
+
+            } catch (error) {
+                log(`Disconnect error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAll() {
+            if (confirm('Clear all data and reload?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+    </script>
+</body>
+
+</html>
