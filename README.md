@@ -1,7 +1,7 @@
 # Screenum
 
 <div align="center">
-  <img src="assets/images/screenum-logo.png" alt="Screenum Logo" width="200"/>
+  <img src="assets/images/screenum-logo.png" alt="Screenum Logo" width="700" height="auto"/>
 </div>
 
 A high-performance, real-time multimodal AI application built with FastAPI and Google's Gemini Live API. This service enables real-time voice conversations with AI assistants through WebRTC, supporting simultaneous audio and video processing for applications like screen sharing, video feeds, and interactive AI assistants.
